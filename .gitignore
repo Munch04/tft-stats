@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# additional docker artifacts
+/docker-compose.override.yml
+/docker-data/*
+
 # next.js
 /.next/
 /out/
