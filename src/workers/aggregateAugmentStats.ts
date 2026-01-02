@@ -1,7 +1,7 @@
 import { pool } from "@/lib/db";
 
 export async function aggregateAugmentStats() {
-    const query = `
+	await pool.query(`
         INSERT INTO augment_stats (
             augment,
             set_id,
@@ -21,7 +21,5 @@ export async function aggregateAugmentStats() {
         DO UPDATE SET
             games_played = EXCLUDED.games_played,
             avg_placement = EXCLUDED.avg_placement;
-    `;
-
-    await pool.query(query);
+    `);
 }
