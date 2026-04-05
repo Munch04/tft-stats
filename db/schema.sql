@@ -30,11 +30,31 @@ CREATE TABLE IF NOT EXISTS match_augments (
 
 -- Aggregated tables
 CREATE TABLE IF NOT EXISTS champion_stats (
-    champion VARCHAR NOT NULL,
-    set_id VARCHAR NOT NULL,
-    games_played INT,
-    avg_placement FLOAT,
-    top4_rate FLOAT,
-    last_updated TIMESTAMP DEFAULT NOW(),
-    PRIMARY KEY(champion, set_id)
+	champion TEXT NOT NULL,
+	set_id TEXT NOT NULL,
+	games_played INTEGER,
+	avg_placement NUMERIC(4,2),
+	top4_rate NUMERIC(3,2),
+	last_updated TIMESTAMP DEFAULT NOW(),
+	PRIMARY KEY(champion, set_id)
+);
+
+CREATE TABLE IF NOT EXISTS augment_stats (
+	augment TEXT NOT NULL,
+	set_id TEXT NOT NULL,
+	games_played INTEGER,
+	avg_placement NUMERIC(4,2),
+	top4_rate NUMERIC(3,2),
+	last_updated TIMESTAMP DEFAULT NOW(),
+	PRIMARY KEY (augment, set_id)
+);
+
+CREATE TABLE IF NOT EXISTS item_stats (
+	item TEXT NOT NULL,
+	set_id TEXT NOT NULL,
+	games_played INTEGER,
+	avg_placement NUMERIC(4,2),
+	top4_rate NUMERIC(3,2),
+	last_updated TIMESTAMP DEFAULT NOW(),
+	PRIMARY KEY (item, set_id)
 );

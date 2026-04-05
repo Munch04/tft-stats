@@ -1,17 +1,27 @@
 import { matchQueue } from "./redis";
-
-export async function enqueueTopPlayers(topPlayers: string[]) {
-    for (const playerId of topPlayers) {
+import { getTopPlayers } from "./riot";
+ 
+export async function enqueueTopPlayers(puuids: string[]): Promise<void> {
+    for (const puuid of puuids) {
         await matchQueue.add(
             "fetchPlayer",
-            { playerId },
+            { playerId: puuid },
             { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
         );
     }
 }
-
-setInterval(async () => {
-    const topPlayers = await getTopPlayersFromRiot();
-    await enqueueTopPlayers(topPlayers);
-    console.log("Endqueued top players:", topPlayers);
-}, 1000 * 60 * 60);
+ 
+async function runScheduler(): Promise<void> {
+    try {
+        console.log("[scheduler] Fetching top players...");
+        const puuids = await getTopPlayers(50);
+        await enqueueTopPlayers(puuids);
+        console.log(`[scheduler] Enqueued ${puuids.length} players`);
+    } catch (err) {
+        console.error("[scheduler] Failed to enqueue top players:", err);
+    }
+}
+ 
+// Runs on startup then every hour
+runScheduler();
+setInterval(runScheduler, 1000 * 60 * 60);
