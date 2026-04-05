@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS match_units (
     match_id VARCHAR REFERENCES matches(match_id),
     unit_name VARCHAR NOT NULL,
     tier INT,
-    PRIMARY KEY(match_id, unit_name)
+    PRIMARY KEY(match_id, unit_name, tier)
 );
 
 CREATE TABLE IF NOT EXISTS match_items (

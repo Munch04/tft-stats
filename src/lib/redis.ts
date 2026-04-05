@@ -1,12 +1,15 @@
 import { Queue, Worker } from "bullmq";
 import { pool } from "./db";
 import { getMatchIds, getMatch, ParsedMatch } from "./riot";
+import { aggregateChampionStats, aggregateChampionItemStats } from "@/workers/aggregateStats";
+import { aggregateItemStats } from "@/workers/aggregateItemStats";
+import { aggregateAugmentStats } from "@/workers/aggregateAugmentStats";
  
 export const connection = {
     host: process.env.REDIS_HOST ?? "localhost",
     port: Number(process.env.REDIS_PORT ?? 6379),
 };
- 
+
 export const matchQueue = new Queue("matches", { connection });
  
 async function saveMatch(match: ParsedMatch): Promise<void> {
@@ -15,26 +18,20 @@ async function saveMatch(match: ParsedMatch): Promise<void> {
         await client.query("BEGIN");
  
         for (const participant of match.participants) {
+            const rowMatchId = `${match.matchId}_${participant.puuid}`;
+ 
             await client.query(
                 `INSERT INTO matches (match_id, set_id, game_datetime, player_puuid, placement)
                  VALUES ($1, $2, $3, $4, $5)
                  ON CONFLICT (match_id) DO NOTHING`,
-                [
-                    `${match.matchId}_${participant.puuid}`,
-                    match.setId,
-                    match.gameDatetime,
-                    participant.puuid,
-                    participant.placement,
-                ]
+                [rowMatchId, match.setId, match.gameDatetime, participant.puuid, participant.placement]
             );
- 
-            const rowMatchId = `${match.matchId}_${participant.puuid}`;
  
             for (const unit of participant.units) {
                 await client.query(
                     `INSERT INTO match_units (match_id, unit_name, tier)
                      VALUES ($1, $2, $3)
-                     ON CONFLICT (match_id, unit_name) DO NOTHING`,
+                     ON CONFLICT (match_id, unit_name, tier) DO NOTHING`,
                     [rowMatchId, unit.unitName, unit.tier]
                 );
  
@@ -66,13 +63,24 @@ async function saveMatch(match: ParsedMatch): Promise<void> {
         client.release();
     }
 }
- 
+
+async function runAggregations(): Promise<void> {
+    console.log("[worker] Running aggregations...");
+    await Promise.all([
+        aggregateChampionStats(),
+        aggregateChampionItemStats(),
+        aggregateItemStats(),
+        aggregateAugmentStats(),
+    ]);
+    console.log("[worker] Aggregations complete");
+}
+
 export const matchWorker = new Worker(
     "matches",
     async (job) => {
         const { playerId } = job.data as { playerId: string };
         console.log(`[worker] Processing player: ${playerId}`);
-
+ 
         const matchIds = await getMatchIds(playerId, 20);
         console.log(`[worker] Found ${matchIds.length} matches for ${playerId}`);
  
@@ -86,6 +94,7 @@ export const matchWorker = new Worker(
             }
         }
  
+        await runAggregations();
         console.log(`[worker] Done with player: ${playerId}`);
     },
     {
@@ -93,7 +102,7 @@ export const matchWorker = new Worker(
         concurrency: 3,
     }
 );
- 
+
 matchWorker.on("failed", (job, err) => {
     console.error(`[worker] Job ${job?.id} failed:`, err.message);
 });
